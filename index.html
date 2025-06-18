@@ -10,10 +10,10 @@
     </head>
     <body>
         <div id="main-screen">
-
+            
             <div class="inline-button-container">
                 <button id="options-button">Opciones</button>
-                <button id="import-2">Importar datos</button>
+                <button id="import">Importar datos</button>
                 <button id="install" hidden>Instalar app</button>
             </div>
 
@@ -22,14 +22,13 @@
                 <button id="delete-all">Borrar todo</button>
             </div>
 
-            <h1>Buscador de términos</h1>
+            <h1 id="main-screen-title">Buscador de términos</h1>
 
             <input id="search" type="search" autocomplete="off" placeholder="Buscar o crear...">
 
             <div id="add-term-menu" hidden>
-                <h1>Agregar Término</h1>
+                <h1 id="add-term-title">Agregar Término</h1>
 
-                <div id="required-entries">
                 <div class="add-item-entry">
                     <label for="add-term-eng">ENG: </label>
                     <input id="add-term-eng" type="text" placeholder="English expression" tabindex="1">
@@ -38,7 +37,6 @@
                 <div class="add-item-entry">
                     <label for="add-term-esp">ESP: </label>
                     <input id="add-term-esp" type="text" placeholder="Spanish expression" tabindex="2">
-                </div>
                 </div>
 
                 <div class="add-item-entry">

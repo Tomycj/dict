@@ -168,10 +168,6 @@ dialog {
 	margin-left: 1ch;
 }
 
-input[type=number] {
-  -moz-appearance: textfield;
-}
-
 h1 {
 	text-align: center;
 	margin: 0.6ch;

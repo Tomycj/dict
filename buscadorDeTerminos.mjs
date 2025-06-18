@@ -29,12 +29,10 @@ const fuseOptions = {
     ignoreLocation: true,
     minMatchCharLength: 2,
 }
-
 const fuse = new Fuse(fullList, fuseOptions);
 
-
 const search = document.getElementById("search");
-
+const msTitle = document.getElementById("main-screen-title");
 
 const database = await (async ()=>{
 
@@ -163,7 +161,6 @@ const database = await (async ()=>{
 
     }
 
-
     function retrieveAll(withKeys = false) {
         return new Promise((resolve, reject)=> {
 
@@ -237,6 +234,9 @@ const database = await (async ()=>{
 const addTermMenu = (()=>{
     
     const menu = document.getElementById("add-term-menu");
+    const title = document.getElementById("add-term-title");
+    const titleDefaultText = title.innerText;
+    const titleEditModeText = "Editar término";
 
     const engInput = document.getElementById("add-term-eng");
     const espInput = document.getElementById("add-term-esp");
@@ -253,7 +253,7 @@ const addTermMenu = (()=>{
 
     menu.addEventListener("input", updateAddButton);
 
-    addButton.addEventListener("click", addTermHandler);
+    addButton.addEventListener("click", addOrEditTerm);
 
     returnButton.addEventListener("click", hide);
 
@@ -266,6 +266,7 @@ const addTermMenu = (()=>{
         next.focus();
     }
     function unHide(tileWrapperToEdit) {
+        msTitle.hidden = true;
         search.hidden = true;
         translationsGrid.hide();
         menu.hidden = false;
@@ -278,6 +279,7 @@ const addTermMenu = (()=>{
             tileBeingEdited = tileWrapperToEdit;
 
             addButton.innerText = addButtonEditModeText;
+            title.innerText = titleEditModeText;
             const entryIndex = tileBeingEdited.firstElementChild.getAttribute("data-index");
 
             const [eng, esp, note, catInd] = fullList[entryIndex];
@@ -292,22 +294,21 @@ const addTermMenu = (()=>{
         
         clearInputs();
         tileBeingEdited = null;
-
+        msTitle.hidden = false;
         search.hidden = false;
         translationsGrid.unHide();
         document.getElementById("add-term-menu").hidden = true;
         addButton.innerText = addButtonDefaultText;
+        title.innerText = titleDefaultText;
         search.value = "";
         search.dispatchEvent(new Event("input"));
     }
-    function addTermHandler() {
+    function addOrEditTerm() {
         
         const engTerm = engInput.value;
         const espTerm = espInput.value;
         const categ = categInput.value || categInput.placeholder;
         const notes = notesInput.value;
-
-        //const outcomeDisplay = addVtoReturnButton.parentElement.insertAdjacentElement("afterend", document.createElement("div"));
 
         if (usingDemoValues) {
             idToCategory = [];
@@ -319,9 +320,8 @@ const addTermMenu = (()=>{
 
         const entry = [engTerm, espTerm, notes, catId, null, getSearchableString([engTerm, espTerm])];
 
-
         if (tileBeingEdited) {
-
+            
             const entryIndex = tileBeingEdited.firstElementChild.getAttribute("data-index");
             const entryBeingEdited = fullList[entryIndex];
 
@@ -334,9 +334,6 @@ const addTermMenu = (()=>{
 
             //update the fuse index
             const fuseIndex = fuse.getIndex(); // btw: index.docs === fullList;
-
-            console.log("test for entry index:",entryIndex, fuseIndex.records[entryIndex])
-
             fuseIndex.records[entryIndex].$[0].v = entry[5];
 
             if (usingDemoValues) {
@@ -352,7 +349,6 @@ const addTermMenu = (()=>{
                 usingDemoValues = false;
             } else {
                 fuse.add(entry);
-                console.log("fuse added:", fuse.getIndex()) //TODO: index gets stored with wrong entryIndex, after deleting others
             }
 
         }
@@ -378,11 +374,6 @@ const addTermMenu = (()=>{
     }
 
     return {
-        nameInput: engInput,
-        addButton,
-        returnButton,
-
-        addVtoHandler: addTermHandler,
         hide,
         unHide,
     }
@@ -556,17 +547,8 @@ const translationsGrid = (()=> {
     }
 })();
 
-try {
-    displayInfo("Cargando entradas guardadas...")
-    const N = await database.retrieveAll(true).then(handleRetrievedEntries);
-    displayInfo(N ? `${N} entradas cargadas!` : "No se encontraron entradas cargadas." );
-} catch (err) {
-    displayInfo("⚠ Error al cargar datos guardados.");
-    console.error(err);
-}
 
-
-document.getElementById("import-2").addEventListener("click", async _=>{
+document.getElementById("import").addEventListener("click", async _=>{
 
     Promise.resolve().then(_=>{
         const userConfirmed = window.confirm("Esto BORRARÁ las entradas actuales. Continuar?");
@@ -596,10 +578,14 @@ document.getElementById("import-2").addEventListener("click", async _=>{
                     .then(_=>database.storeBulk(jsonArray))
                     .then(_=>database.retrieveAll(true))
                     .then(handleRetrievedEntries)
-                    .catch(err=>console.error("Database error:", err));
+                    .catch(err=>{
+                        console.error("Database error:", err);
+                        displayInfo("⚠ Error al procesar los datos.");
+                    });
 
                 } catch (err) {
                     console.error("Error parsing JSON file:", err);
+                    displayInfo("⚠ Error al leer el archivo.");
                 }
             };
 
@@ -616,7 +602,7 @@ document.getElementById("import-2").addEventListener("click", async _=>{
     
 });
 
-search.addEventListener("input", ()=>{
+search.addEventListener("input", _=>{
     const target = search.value;
 
     if (target === "") {
@@ -637,7 +623,7 @@ search.addEventListener("input", ()=>{
         const indexInFullList = result[i].refIndex;
         const entry = fullList[indexInFullList];
 
-        if (!entry) console.warn(result) //TODO: after deletion still searches
+        if (!entry) console.warn(result);
 
         translationsGrid.appendTile(translationsGrid.createTile(entry, indexInFullList));
     }
@@ -661,7 +647,7 @@ document.getElementById("delete-all").addEventListener("click", _=>{
     
 });
 
-document.getElementById("download").addEventListener("click", ()=>{
+document.getElementById("download").addEventListener("click", _=>{
     const dlArr = [Array.from(idToCategory)].concat(fullList.map(entry=>entry.slice(0, 4)));
     downloadObjAsJson(dlArr)
 });
@@ -681,6 +667,16 @@ window.addEventListener("beforeinstallprompt", (ev) => {
 });
 
 
+try {
+    displayInfo("Cargando entradas guardadas...");
+    const N = await database.retrieveAll(true).then(handleRetrievedEntries);
+    displayInfo(N ? `${N} entradas cargadas!` : "No se encontraron entradas cargadas." );
+} catch (err) {
+    displayInfo("⚠ Error al cargar datos guardados.");
+    console.error(err);
+}
+
+
 search.dispatchEvent(new Event("input"));
 
 
@@ -695,14 +691,13 @@ function downloadObjAsJson(obj, filename = "descarga") {
     URL.revokeObjectURL(url);
 }
 
-
 function displayInfo(msg) {
     const display = document.getElementById("info-msg");
     display.innerText = msg;
     display.classList.remove("fadeOut");
+    void display.offsetWidth;
     display.classList.add("fadeOut");
 }
-
 
 function formatImportedEntries(entriesArray){
     
@@ -732,8 +727,6 @@ function handleRetrievedEntries(entries) {
     usingDemoValues = false;
     idToCategory = entries.shift().slice(0, -1) || [];
     fullList = formatImportedEntries(entries);
-    //fuse = new Fuse(fullList, fuseOptions);
-
     fuse.setCollection(fullList)
 
     search.dispatchEvent(new Event("input"));
