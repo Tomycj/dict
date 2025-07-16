@@ -456,12 +456,14 @@ const translationsGrid = (()=> {
         }
 
     });
+
+    const highlights = new Highlight();
+    CSS.highlights.set("search-match", highlights);
     
     return {
-        
         element: grid,
-        
         addTranslationTile,
+        highlightsEnabled: true,
         
         hide() {
             this.element.style.display = "none";
@@ -504,14 +506,10 @@ const translationsGrid = (()=> {
                 noteTile.classList.add("note-tile");
                 noteTile.classList.add(tileStyle);
                 noteTile.innerText = entry[2];
-
-                
+   
                 wrapper.appendChild(noteTile);
-                
             }
-            
             return wrapper;
-
         },
         
         appendTile(tile) {
@@ -542,7 +540,28 @@ const translationsGrid = (()=> {
             for (const tile of this.element.children) {
                 tile.className = tileStyle;
             }
-        }
+        },
+
+        highlightIfEnabled(targetText) {
+
+            highlights.clear();
+            if (!translationsGrid.highlightsEnabled) return;
+
+            const regex = new RegExp(RegExp.escape(targetText), "gi");
+            const walker = document.createTreeWalker(grid, NodeFilter.SHOW_TEXT);
+
+            while (walker.nextNode()) {
+                const node = walker.currentNode;
+
+                let match;
+                while ((match = regex.exec(node.textContent)) !== null) {
+                    const range = new Range();
+                    range.setStart(node, match.index);
+                    range.setEnd(node, match.index + match[0].length);
+                    highlights.add(range);
+                }
+            }
+        },
         
     }
 })();
@@ -602,6 +621,7 @@ document.getElementById("import").addEventListener("click", async _=>{
     
 });
 
+
 search.addEventListener("input", _=>{
     const target = search.value;
 
@@ -629,10 +649,18 @@ search.addEventListener("input", _=>{
     }
     translationsGrid.enableAddTranslationTile();
 
+    translationsGrid.highlightIfEnabled(target);
 });
 
 document.getElementById("options-button").addEventListener("click", _=>{
     document.getElementById("options-container").hidden ^= true;
+});
+
+
+document.getElementById("highlight-toggle").addEventListener("click", (ev)=>{
+    translationsGrid.highlightsEnabled ^= true;
+    ev.target.classList.toggle("active");
+    if (search.value !== "") translationsGrid.highlightIfEnabled(search.value);
 });
 
 document.getElementById("delete-all").addEventListener("click", _=>{

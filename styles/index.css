@@ -29,6 +29,9 @@ body::-webkit-scrollbar-track {
 button{
 	background-color: var(--bg-color-dark);
 }
+.active{
+	background-color: #ffc13b;
+}
 button:hover:enabled {
 	background-color: #ffdd48;
 	cursor: pointer;
@@ -176,4 +179,8 @@ h1 {
 .invalid {
 	color: red;
 	border-style: solid;
+}
+
+::highlight(search-match) {
+	background-color: yellow;
 }
