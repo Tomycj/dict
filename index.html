@@ -12,14 +12,29 @@
         <div id="main-screen">
             
             <div class="inline-button-container">
-                <button id="options-button">Opciones</button>
-                <button id="import">Importar datos</button>
-                <button id="install" hidden>Instalar app</button>
+                <button id="options-button" style="position:relative">
+                    <div id="options-indicator" style="position:absolute"></div>
+                    Opciones
+                </button>
+                <button id="menu-button">Menú</button>
+                <button id="import" hidden>Importar datos</button>
             </div>
 
             <div id="options-container" class="options-container" hidden>
+                <button id="exact-match-only">Sólo coincidencias exactas</button>
                 <button id="highlight-toggle" class="active">Remarcar texto buscado</button>
-                <button id="download">Descargar datos</button>
+            </div>
+
+            <div id="menu-container" class="options-container" hidden>
+                <button id="install" hidden>Instalar app</button>
+                <div class="inline-button-container" style="display: flex;">
+                    <button id="menu-search" class="active">Búsqueda de términos</button>
+                    <button id="menu-phrases">Frases comunes</button>
+                </div>
+                <div class="inline-button-container" style="display: flex;">
+                    <button id="download">Descargar datos</button>
+                </div>
+                <button id="menu-controls">Mostrar atajos</button>
                 <button id="delete-all">Borrar todo</button>
             </div>
 
@@ -32,12 +47,12 @@
 
                 <div class="add-item-entry">
                     <label for="add-term-eng">ENG: </label>
-                    <input id="add-term-eng" type="text" placeholder="English expression" tabindex="1">
+                    <input id="add-term-eng" type="text" placeholder="English expression" autocomplete="off" tabindex="1">
                 </div>
 
                 <div class="add-item-entry">
                     <label for="add-term-esp">ESP: </label>
-                    <input id="add-term-esp" type="text" placeholder="Spanish expression" tabindex="2">
+                    <input id="add-term-esp" type="text" placeholder="Spanish expression" autocomplete="off" tabindex="2">
                 </div>
 
                 <div class="add-item-entry">
@@ -47,7 +62,7 @@
 
                 <div class="add-item-entry">
                     <label for="add-term-notes">Notas (opc): </label>
-                    <input id="add-term-notes" type="text" tabindex="4">
+                    <input id="add-term-notes" type="text" autocomplete="off" tabindex="4">
                 </div>
 
                 <div class="inline-button-container">

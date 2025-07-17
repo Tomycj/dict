@@ -23,16 +23,23 @@ let fullList = [
 let idToCategory = ["categoría","ejemplo"];
 let usingDemoValues = true;
 
-const fuseOptions = {
+const baseFuseOptions = {
     keys: ["5"], // must match formatImportedEntries// [{name: "searchabale fields", getFn: (item) => [item[0], item[1]]}],
     ignoreDiacritics: true,
     ignoreLocation: true,
     minMatchCharLength: 2,
 }
-const fuse = new Fuse(fullList, fuseOptions);
+let fuse = new Fuse(fullList, baseFuseOptions);
 
 const search = document.getElementById("search");
 const msTitle = document.getElementById("main-screen-title");
+const importButton = document.getElementById("import");
+const highlightToggleButton = document.getElementById("highlight-toggle");
+const optionsButton = document.getElementById("options-button");
+const exactMatchingButton = document.getElementById("exact-match-only");
+const optionsContainer = document.getElementById("options-container");
+const menuContainer = document.getElementById("menu-container");
+const menuButton = document.getElementById("menu-button");
 
 const database = await (async ()=>{
 
@@ -271,6 +278,8 @@ const addTermMenu = (()=>{
         translationsGrid.hide();
         menu.hidden = false;
 
+        engInput.focus();
+
         const editingTile = tileWrapperToEdit instanceof HTMLElement;
         if (!editingTile) {
             engInput.value = search.value;
@@ -291,16 +300,16 @@ const addTermMenu = (()=>{
         }
     }
     function hide() {
-        
         clearInputs();
         tileBeingEdited = null;
         msTitle.hidden = false;
         search.hidden = false;
         translationsGrid.unHide();
-        document.getElementById("add-term-menu").hidden = true;
+        menu.hidden = true;
         addButton.innerText = addButtonDefaultText;
         title.innerText = titleDefaultText;
         search.value = "";
+        search.focus();
         search.dispatchEvent(new Event("input"));
     }
     function addOrEditTerm() {
@@ -374,6 +383,7 @@ const addTermMenu = (()=>{
     }
 
     return {
+        element: menu,
         hide,
         unHide,
     }
@@ -566,61 +576,82 @@ const translationsGrid = (()=> {
     }
 })();
 
+const optionsIndicator = (()=>{
 
-document.getElementById("import").addEventListener("click", async _=>{
+    const element = document.getElementById("options-indicator");
+    element.hidden = true;
+    return {
+        element,
+        update(){
+            if (element.hidden) return;
+            const exactMatching = exactMatchingButton.classList.contains("active");
+            const highlightMatches = highlightToggleButton.classList.contains("active");
 
-    Promise.resolve().then(_=>{
-        const userConfirmed = window.confirm("Esto BORRARÁ las entradas actuales. Continuar?");
+            let text = "";
+
+            if (exactMatching && highlightMatches) {text = "E/H"}
+            else if (exactMatching) {text = "E"}
+            else if (highlightMatches) {text = "H"}
+
+            element.innerText = text;
+            optionsButton.style.minWidth = `${optionsButton.innerText.length + text.length + 1}ch`;
+        }
+    }
+})();
+
+
+importButton.addEventListener("click", async _=>{
+
+    if (importButton.previousElementSibling !== menuButton) {
+        const userConfirmed = await preventConsoleWarning("confirm", "Esto BORRARÁ las entradas actuales. Continuar?");
         if (!userConfirmed) return;
+    }
 
-        const fileInput = document.createElement("input");
-        fileInput.type = "file";
-        fileInput.accept = ".json";
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".json";
 
-        fileInput.onchange = (changeEv)=> {
-            const file = changeEv.target.files[0];
-            if (!file) {
-                console.log("No file selected.");
-                return;
+    fileInput.onchange = (changeEv)=> {
+        const file = changeEv.target.files[0];
+        if (!file) {
+            console.log("No file selected.");
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = (loadEv)=> {
+            try {
+                const jsonString = loadEv.target.result;
+                const jsonArray = JSON.parse(jsonString);
+
+                if (!Array.isArray(jsonArray)) {throw new TypeError("Loaded JSON is not an array")}
+
+                database.clear()
+                .then(_=>database.storeBulk(jsonArray))
+                .then(_=>database.retrieveAll(true))
+                .then(handleRetrievedEntries)
+                .catch(err=>{
+                    console.error("Database error:", err);
+                    displayInfo("⚠ Error al procesar los datos.");
+                });
+
+            } catch (err) {
+                console.error("Error parsing JSON file:", err);
+                displayInfo("⚠ Error al leer el archivo.");
             }
-
-            const reader = new FileReader();
-
-            reader.onload = (loadEv)=> {
-                try {
-                    const jsonString = loadEv.target.result;
-                    const jsonArray = JSON.parse(jsonString);
-
-                    if (!Array.isArray(jsonArray)) {throw new TypeError("Loaded JSON is not an array")}
-
-                    database.clear()
-                    .then(_=>database.storeBulk(jsonArray))
-                    .then(_=>database.retrieveAll(true))
-                    .then(handleRetrievedEntries)
-                    .catch(err=>{
-                        console.error("Database error:", err);
-                        displayInfo("⚠ Error al procesar los datos.");
-                    });
-
-                } catch (err) {
-                    console.error("Error parsing JSON file:", err);
-                    displayInfo("⚠ Error al leer el archivo.");
-                }
-            };
-
-            reader.onerror = (errorEv)=> {
-                console.error("Error reading file:", errorEv.target.error);
-            };
-
-            reader.readAsText(file);
         };
 
-        fileInput.click();
-        
-    })
+        reader.onerror = (errorEv)=> {
+            console.error("Error reading file:", errorEv.target.error);
+        };
+
+        reader.readAsText(file);
+    };
+
+    fileInput.click();
     
 });
-
 
 search.addEventListener("input", _=>{
     const target = search.value;
@@ -632,7 +663,7 @@ search.addEventListener("input", _=>{
 
     translationsGrid.clear();
 
-    let lim = 10
+    let lim = 15;
 
     const result = fuse?.search(target, {limit: lim}) || [];
 
@@ -652,19 +683,32 @@ search.addEventListener("input", _=>{
     translationsGrid.highlightIfEnabled(target);
 });
 
-document.getElementById("options-button").addEventListener("click", _=>{
-    document.getElementById("options-container").hidden ^= true;
+optionsButton.addEventListener("click", _=>{
+    optionsContainer.hidden ^= true;
+    if (!optionsContainer.hidden) menuContainer.hidden = true;
 });
 
+menuButton.addEventListener("click", _=>{
+    menuContainer.hidden ^= true;
+    if (!menuContainer.hidden) optionsContainer.hidden = true;
+})
 
-document.getElementById("highlight-toggle").addEventListener("click", (ev)=>{
-    translationsGrid.highlightsEnabled ^= true;
-    ev.target.classList.toggle("active");
+exactMatchingButton.addEventListener("click", _=>{
+    const exactSearching = exactMatchingButton.classList.toggle("active");
+    optionsIndicator.update();
+    fuse = new Fuse(fullList, {...baseFuseOptions, threshold: exactSearching ? 0.0 : 0.6});
+    search.dispatchEvent(new Event("input"));
+});
+
+highlightToggleButton.addEventListener("click", _=>{
+    translationsGrid.highlightsEnabled = highlightToggleButton.classList.toggle("active");
+    optionsIndicator.update();
     if (search.value !== "") translationsGrid.highlightIfEnabled(search.value);
 });
 
-document.getElementById("delete-all").addEventListener("click", _=>{
-    const doDelete = window.confirm("Borrar todas las entradas?");
+document.getElementById("delete-all").addEventListener("click", async _=>{
+
+    const doDelete = await preventConsoleWarning("confirm", "Borrar todas las entradas?");
     if (!doDelete) return;
 
     fullList.length = 0;
@@ -672,7 +716,6 @@ document.getElementById("delete-all").addEventListener("click", _=>{
     fuse.setCollection(fullList);
     database.clear();
     search.dispatchEvent(new Event("input"));
-    
 });
 
 document.getElementById("download").addEventListener("click", _=>{
@@ -689,11 +732,58 @@ window.addEventListener("beforeinstallprompt", (ev) => {
         try {
             await ev.prompt();
         } catch (error) {
-            window.alert("Para poder instalar la app, por favor recargue la página e intente nuevamente.")
+            preventConsoleWarning("alert", "Para poder instalar la app, por favor recargue la página e intente nuevamente.");
         }
     });
 });
 
+document.getElementById("menu-controls").addEventListener("click", _=>{
+    const controls =
+        "Ctrl S: Buscar (Esc para borrar todo)\n" +
+        "Ctrl E: Sólo coincidencias exactas\n" +
+        "Ctrl H: Remarcar texto buscado\n" +
+        "Ctrl A: Agregar término (Esc para cancelar)\n" +
+        "Ctrl O: Opciones\n" +
+        "Ctrl M: Menú";
+    preventConsoleWarning("alert", controls);
+})
+
+document.addEventListener("keydown", (ev)=>{
+    
+    if (!addTermMenu.element.hidden && ev.code === "Escape") {
+        addTermMenu.hide();
+        return;
+    }
+
+    if (!ev.ctrlKey) return;
+
+    switch (ev.code){
+        case "KeyS":
+            ev.preventDefault();
+            search.focus();
+            break;
+        case "KeyE":
+            ev.preventDefault();
+            exactMatchingButton.click();
+            break;
+        case "KeyH":
+            ev.preventDefault();
+            highlightToggleButton.click();
+            break;
+        case "KeyO":
+            ev.preventDefault();
+            optionsButton.click();
+            break;
+        case "KeyM":
+            ev.preventDefault();
+            menuButton.click();
+            break;
+        case "KeyA":
+            ev.preventDefault();
+            translationsGrid.addTranslationTile.click();
+            break;
+    }
+});
 
 try {
     displayInfo("Cargando entradas guardadas...");
@@ -702,29 +792,26 @@ try {
 } catch (err) {
     displayInfo("⚠ Error al cargar datos guardados.");
     console.error(err);
+} finally {
+    importButton.hidden = false;
 }
-
 
 search.dispatchEvent(new Event("input"));
 
 
-function downloadObjAsJson(obj, filename = "descarga") {
-    const json = JSON.stringify(obj, null, 2);
-    const blob = new Blob([json], {type: "application/json"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename + ".json";
-    a.click();
-    URL.revokeObjectURL(url);
-}
+function handleRetrievedEntries(entries) {
 
-function displayInfo(msg) {
-    const display = document.getElementById("info-msg");
-    display.innerText = msg;
-    display.classList.remove("fadeOut");
-    void display.offsetWidth;
-    display.classList.add("fadeOut");
+    if (entries.length <= 1) return 0;
+
+    usingDemoValues = false;
+    idToCategory = entries.shift().slice(0, -1) || [];
+    fullList = formatImportedEntries(entries);
+    fuse.setCollection(fullList);
+    
+    document.getElementById("download").insertAdjacentElement("beforebegin", importButton);
+
+    search.dispatchEvent(new Event("input"));
+    return entries.length
 }
 
 function formatImportedEntries(entriesArray){
@@ -748,15 +835,28 @@ function getSearchableString(entry) {
     return `${entry[0]} = ${entry[1]}`.replace(/[()=\/]/g, "");
 }
 
-function handleRetrievedEntries(entries) {
+function downloadObjAsJson(obj, filename = "descarga") {
+    const json = JSON.stringify(obj, null, 2);
+    const blob = new Blob([json], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename + ".json";
+    a.click();
+    URL.revokeObjectURL(url);
+}
 
-    if (entries.length === 0) return 0;
+function displayInfo(msg) {
+    const display = document.getElementById("info-msg");
+    display.innerText = msg;
+    display.classList.remove("fadeOut");
+    void display.offsetWidth;
+    display.classList.add("fadeOut");
+}
 
-    usingDemoValues = false;
-    idToCategory = entries.shift().slice(0, -1) || [];
-    fullList = formatImportedEntries(entries);
-    fuse.setCollection(fullList)
-
-    search.dispatchEvent(new Event("input"));
-    return entries.length
+async function preventConsoleWarning(type, message) {
+    return Promise.resolve().then(_=>window[type](message))
+    .catch(err=>{
+        console.error(err + "\n\npreventConsoleWarning: type parameter must be a valid method of window: alert, confirm, etc.");
+    });
 }
